@@ -87,6 +87,9 @@ func (c *ChatServiceImpl) ClearSession(ctx context.Context, userId string) error
 func (c *ChatServiceImpl) ChatWithSessionStream(
 	ctx context.Context, req chat.ChatWithSessonReq, appCtx *app.RequestContext) (err error) {
 
+	timeout, cancelFunc := context.WithTimeout(ctx, time.Second*time.Duration(req.LlmTimeoutSecond))
+	defer cancelFunc()
+
 	cache := repo.NewRedisCache(redis.Client, req.MaxWindows)
 
 	messages, err := cache.Load(ctx, req.UserId)
@@ -104,7 +107,7 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 
 	var sbd strings.Builder
 	appCtx.Response.Header.Set("mime-type", "text/event-stream")
-	_, err = c.llm.GenerateContent(ctx, content,
+	_, err = c.llm.GenerateContent(timeout, content,
 		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
 			sbd.Write(chunk)
 			_, err2 := appCtx.Write(chunk)

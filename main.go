@@ -18,7 +18,10 @@ func init() {
 }
 
 func initLLM() *ollama.LLM {
-	llm, err := ollama.New(ollama.WithModel(config.DefaultConfig.LlmModel))
+	llm, err := ollama.New(
+		ollama.WithModel(config.DefaultConfig.LlmModel),
+		ollama.WithServerURL(config.DefaultConfig.OllmServerUrl),
+	)
 	if err != nil {
 		hlog.Infof("load model failed model: %v error: %v", config.DefaultConfig.LlmModel, err)
 		panic(err)

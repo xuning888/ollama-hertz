@@ -5,10 +5,11 @@ import "gorm.io/gorm/logger"
 var DefaultConfig = &Config{}
 
 type Config struct {
-	LlmModel   string
-	ServerPort string
-	Redis      RedisCfg
-	MySQL      MySQLCfg
+	LlmModel      string
+	OllmServerUrl string
+	ServerPort    string
+	Redis         RedisCfg
+	MySQL         MySQLCfg
 }
 
 type RedisCfg struct {

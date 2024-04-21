@@ -25,8 +25,11 @@ func Init() {
 		log.Printf("config file changed:%s", e.Name)
 	})
 
-	// server config
+	// ollama server
 	DefaultConfig.LlmModel = RuntimeViper.GetString("ollama.model")
+	DefaultConfig.OllmServerUrl = RuntimeViper.GetString("ollama.serverUrl")
+
+	// http server config
 	DefaultConfig.ServerPort = RuntimeViper.GetString("server.port")
 
 	// redis config
