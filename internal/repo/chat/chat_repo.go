@@ -23,6 +23,7 @@ var _ ChatCacheRepo = (*CacheRepo)(nil)
 type ChatCacheRepo interface {
 	Store(ctx context.Context, userId string, contents []*chat.Content) error
 	Load(ctx context.Context, userId string) (messages []*chat.Content, err error)
+	Clear(ctx context.Context, userId string) error
 }
 
 type CacheRepo struct {
@@ -76,6 +77,11 @@ func (c *CacheRepo) Store(ctx context.Context, userId string, contents []*chat.C
 		return err
 	}
 	return c.trimWindow(ctx, key)
+}
+
+func (c *CacheRepo) Clear(ctx context.Context, userId string) error {
+	key := c.key(userId)
+	return c.client.Del(ctx, key).Err()
 }
 
 func (c *CacheRepo) trimWindow(ctx context.Context, key string) error {

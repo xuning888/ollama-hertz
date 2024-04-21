@@ -24,6 +24,7 @@ type ChatService interface {
 	Chat(ctx context.Context, req chat.ChatReq) (response string, err error)
 	ChatWithSession(ctx context.Context, req chat.ChatWithSessonReq) (response string, err error)
 	ChatWithSessionStream(ctx context.Context, req chat.ChatWithSessonReq, appCtx *app.RequestContext) (err error)
+	ClearSession(ctx context.Context, userId string) error
 }
 
 type ChatServiceImpl struct {
@@ -76,6 +77,11 @@ func (c *ChatServiceImpl) ChatWithSession(ctx context.Context, req chat.ChatWith
 	res = sbd.String()
 	err = cache.Store(ctx, req.UserId, []*chat.Content{chat.NewContext(chat.User, req.Content), chat.NewContext(chat.Assistant, res)})
 	return
+}
+
+func (c *ChatServiceImpl) ClearSession(ctx context.Context, userId string) error {
+	cache := repo.NewRedisCache(redis.Client, 0)
+	return cache.Clear(ctx, userId)
 }
 
 func (c *ChatServiceImpl) ChatWithSessionStream(

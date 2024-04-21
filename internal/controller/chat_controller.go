@@ -65,11 +65,33 @@ func (cc *ChatController) ChatStream(ctx context.Context, c *app.RequestContext)
 	return
 }
 
+func (cc *ChatController) ChatClearSession(ctx context.Context, c *app.RequestContext) {
+	var request struct {
+		UserId string
+	}
+
+	if err := c.BindJSON(&request); err != nil {
+		hlog.CtxErrorf(ctx, "chatWithSession fialed invalid json error: %v", err)
+		c.JSON(http.StatusOK, api.FailedWithMessage("Invalid JSON"))
+		return
+	}
+
+	hlog.CtxInfof(ctx, "clear chat context, request: %v", request)
+
+	err := cc.chatService.ClearSession(ctx, request.UserId)
+	if err != nil {
+		c.JSON(http.StatusOK, api.FailedWithMessage("上下文清理失败"))
+		return
+	}
+	c.JSON(http.StatusOK, api.Success())
+}
+
 func (cc *ChatController) Register(hertz *server.Hertz) {
 	apiV1 := hertz.Group("/api/v1/chat")
 	apiV1.POST("/", cc.Chat)
 	apiV1.POST("/session", cc.ChatWithSession)
 	apiV1.POST("/stream", cc.ChatStream)
+	apiV1.POST("/stream/clear", cc.ChatClearSession)
 }
 
 func NewChatController(chatService service.ChatService) *ChatController {

@@ -88,6 +88,14 @@ body {
   padding: 1rem;
 }
 
+.clear-button {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-color: var(--primary-0);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--primary-0);
+}
+
 .prompt-input:focus,
 .prompt-input:not(:placeholder-shown) {
   border-color: var(--primary-0);
@@ -105,6 +113,12 @@ body {
 
 .prompt-input-wrapper:has(.prompt-input:not(:placeholder-shown)) .btn-send {
   background-color: var(--primary-0);
+}
+
+.prompt-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .message-loader {
