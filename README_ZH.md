@@ -1,6 +1,5 @@
 # 简介
-这是一个测试ollama的项目
-
+这是一个测试ollama的项目, 还处于设计阶段, 会调整架构, 让每个人都能拥有自己的AI助手。
 # install
 1. 安装[ollama](https://github.com/ollama/ollama), 此处需要科学上网
 2. 下载 llama3 此处需要科学上网

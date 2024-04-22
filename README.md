@@ -1,6 +1,7 @@
 # Introduction
-This is a project to test ollama.
-[中文](README_ZH.md)
+This is a test project for ollama, still in the design phase, adjustments will be made to the architecture, allowing everyone to have their own AI assistant.
+
+[中文文档](README_ZH.md)
 # install
 1. install [ollama](https://github.com/ollama/ollama)
 2. download llama3
