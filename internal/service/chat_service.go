@@ -51,6 +51,12 @@ func (c *ChatServiceImpl) Chat(ctx context.Context, req chat.ChatReq) (response 
 
 func (c *ChatServiceImpl) ChatWithSession(ctx context.Context, req chat.ChatWithSessonReq) (res string, err error) {
 
+	timeout, cancelFunc := context.WithTimeout(ctx, time.Second*time.Duration(req.LlmTimeoutSecond))
+	defer cancelFunc()
+
+	// user 的时间戳
+	userMillis := time.Now().UnixMilli()
+
 	cache := repo.NewRedisCache(redis.Client, req.MaxWindows)
 
 	messages, err := cache.Load(ctx, req.UserId)
@@ -67,15 +73,22 @@ func (c *ChatServiceImpl) ChatWithSession(ctx context.Context, req chat.ChatWith
 	content = append(content, llms.TextParts(llms.ChatMessageTypeHuman, req.Content))
 
 	var sbd strings.Builder
-	_, err = c.llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-		sbd.Write(chunk)
-		return nil
-	}))
+	_, err = c.llm.GenerateContent(timeout, content,
+		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+			sbd.Write(chunk)
+			return nil
+		}))
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return "", ErrorCallLlmTimeout
+		}
 		return "", err
 	}
+	assistantMillis := time.Now().UnixMilli()
 	res = sbd.String()
-	err = cache.Store(ctx, req.UserId, []*chat.Content{chat.NewContext(chat.User, req.Content), chat.NewContext(chat.Assistant, res)})
+	err = cache.Store(ctx, req.UserId, []*chat.Content{
+		chat.NewContext(chat.User, req.Content, userMillis),
+		chat.NewContext(chat.Assistant, res, assistantMillis)})
 	return
 }
 
@@ -86,6 +99,8 @@ func (c *ChatServiceImpl) ClearSession(ctx context.Context, userId string) error
 
 func (c *ChatServiceImpl) ChatWithSessionStream(
 	ctx context.Context, req chat.ChatWithSessonReq, appCtx *app.RequestContext) (err error) {
+
+	userMillis := time.Now().UnixMilli()
 
 	timeout, cancelFunc := context.WithTimeout(ctx, time.Second*time.Duration(req.LlmTimeoutSecond))
 	defer cancelFunc()
@@ -107,6 +122,7 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 
 	var sbd strings.Builder
 	appCtx.Response.Header.Set("mime-type", "text/event-stream")
+
 	_, err = c.llm.GenerateContent(timeout, content,
 		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
 			sbd.Write(chunk)
@@ -116,8 +132,17 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 			}
 			return appCtx.Flush()
 		}))
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return ErrorCallLlmTimeout
+		}
+		return err
+	}
+	assistantMillis := time.Now().UnixMilli()
 	res := sbd.String()
-	err = cache.Store(ctx, req.UserId, []*chat.Content{chat.NewContext(chat.User, req.Content), chat.NewContext(chat.Assistant, res)})
+	err = cache.Store(ctx, req.UserId, []*chat.Content{
+		chat.NewContext(chat.User, req.Content, userMillis),
+		chat.NewContext(chat.Assistant, res, assistantMillis)})
 	return
 }
 

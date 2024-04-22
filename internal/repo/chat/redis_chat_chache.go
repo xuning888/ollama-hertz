@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/xuning888/ollama-hertz/internal/schema/chat"
-	"time"
 )
 
 var (
@@ -16,22 +15,22 @@ var (
 	ErrorEmpty     = errors.New("Empty")
 )
 
-var _ ChatCacheRepo = (*CacheRepo)(nil)
+var _ Cache = (*RedisCache)(nil)
 
-// ChatCacheRepo
+// Cache
 // Note: 这是一个基于redis的滑动窗口
-type ChatCacheRepo interface {
+type Cache interface {
 	Store(ctx context.Context, userId string, contents []*chat.Content) error
 	Load(ctx context.Context, userId string) (messages []*chat.Content, err error)
 	Clear(ctx context.Context, userId string) error
 }
 
-type CacheRepo struct {
+type RedisCache struct {
 	client     *redis.Client
 	maxWindows int
 }
 
-func (c *CacheRepo) Load(ctx context.Context, userId string) (messages []*chat.Content, err error) {
+func (c *RedisCache) Load(ctx context.Context, userId string) (messages []*chat.Content, err error) {
 	key := c.key(userId)
 	zRange := c.client.ZRange(ctx, key, 0, -1)
 	if err = zRange.Err(); err != nil {
@@ -55,18 +54,17 @@ func (c *CacheRepo) Load(ctx context.Context, userId string) (messages []*chat.C
 	return
 }
 
-func (c *CacheRepo) Store(ctx context.Context, userId string, contents []*chat.Content) error {
-	score := float64(time.Now().UnixMilli())
+func (c *RedisCache) Store(ctx context.Context, userId string, contents []*chat.Content) error {
 	key := c.key(userId)
 	members := make([]redis.Z, 0, len(contents))
-	for idx, content := range contents {
+	for _, content := range contents {
 		message, err := json.Marshal(content)
 		if err != nil {
 			hlog.CtxErrorf(ctx, "store chat message failed marshal content error: %v", err)
 			return err
 		}
 		members = append(members, redis.Z{
-			Score:  score + float64(idx),
+			Score:  float64(content.Timestamp),
 			Member: message,
 		})
 	}
@@ -79,21 +77,21 @@ func (c *CacheRepo) Store(ctx context.Context, userId string, contents []*chat.C
 	return c.trimWindow(ctx, key)
 }
 
-func (c *CacheRepo) Clear(ctx context.Context, userId string) error {
+func (c *RedisCache) Clear(ctx context.Context, userId string) error {
 	key := c.key(userId)
 	return c.client.Del(ctx, key).Err()
 }
 
-func (c *CacheRepo) trimWindow(ctx context.Context, key string) error {
+func (c *RedisCache) trimWindow(ctx context.Context, key string) error {
 	return c.client.ZRemRangeByRank(ctx, key, 0, int64(-(c.maxWindows + 1))).Err()
 }
 
-func (c *CacheRepo) key(userId string) string {
+func (c *RedisCache) key(userId string) string {
 	return fmt.Sprintf("chat:session:%s", userId)
 }
 
-func NewRedisCache(client *redis.Client, maxWindows int) *CacheRepo {
-	return &CacheRepo{
+func NewRedisCache(client *redis.Client, maxWindows int) *RedisCache {
+	return &RedisCache{
 		client:     client,
 		maxWindows: maxWindows,
 	}

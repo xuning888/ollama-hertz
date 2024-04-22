@@ -39,13 +39,15 @@ func (r Role) LlmsRole() llms.ChatMessageType {
 }
 
 type Content struct {
-	Role    Role   `json:"role"`
-	Message string `json:"message"`
+	Role      Role   `json:"role"`
+	Message   string `json:"message"`
+	Timestamp int64  `json:"timestamp"`
 }
 
-func NewContext(role Role, message string) *Content {
+func NewContext(role Role, message string, timestamp int64) *Content {
 	return &Content{
-		Role:    role,
-		Message: message,
+		Role:      role,
+		Message:   message,
+		Timestamp: timestamp,
 	}
 }
