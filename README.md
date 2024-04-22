@@ -1,11 +1,34 @@
-# 简介
-这是一个测试ollama的项目
-
+# Introduction
+This is a project to test ollama.
+[中文](README_ZH.md)
 # install
-1. 安装[ollama](https://github.com/ollama/ollama)
-2. 下载 llama3
-3. 安装redis
-4. 安装mysql, 创建名为 ollama的数据库 create database ollama utfbmb4
-5. 把script 下的sql脚本写入数据库中
-6. 把修改pkg/config/cfg.toml配置文件，并把它移动把 /etc/ollama-hertz目录下
-7. 启动项目访问 http:127.0.0.1:你配置的端口/index.html
+1. install [ollama](https://github.com/ollama/ollama)
+2. download llama3
+```shell
+    ollama run llama3
+```
+3. download redis
+4. Install mysql, create a database named ollama
+```shell
+create database ollama utf8mb4;
+```
+5. Write the sql script from the script directory into the database
+
+6. Modify the pkg/config/cfg.toml configuration file and move it to the /etc/ollama-hertz directory
+```shell
+sudo make -p /etc/ollama-hertz
+sudo cp ./script/cfg.tomal /etc/ollama-hertz/cfg.toml
+```
+7. Start the project, go back to the project root directory, and execute the following command
+```shell
+go run .
+```
+8. Open a browser and visit http:127.0.0.1:8080/index.html
+
+![img.png](docs/image/img.png)
+
+![img.png](docs/image/img2.png)
+
+
+# Logo
+## Used Ollama's official logo, if it infringes, please contact to remove!!!
