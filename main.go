@@ -3,6 +3,8 @@
 package main
 
 import (
+	"context"
+	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/tmc/langchaingo/llms/ollama"
@@ -10,6 +12,7 @@ import (
 	"github.com/xuning888/ollama-hertz/internal/dal"
 	"github.com/xuning888/ollama-hertz/internal/service"
 	"github.com/xuning888/ollama-hertz/pkg/config"
+	"net/http"
 )
 
 func init() {
@@ -47,5 +50,11 @@ func main() {
 
 	hertz.Static("/", "static/")
 	Register(hertz)
+
+	// 重定向到index.html
+	hertz.GET("/", func(c context.Context, ctx *app.RequestContext) {
+		ctx.Redirect(http.StatusOK, []byte("/index.html"))
+		return
+	})
 	hertz.Spin()
 }

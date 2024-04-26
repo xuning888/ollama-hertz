@@ -33,7 +33,11 @@ func Init() {
 	DefaultConfig.ServerPort = RuntimeViper.GetString("server.port")
 
 	// redis config
+	DefaultConfig.Redis.Model = RuntimeViper.GetString("redis.model")
 	DefaultConfig.Redis.Addr = RuntimeViper.GetString("redis.addr")
+	DefaultConfig.Redis.Addrs = RuntimeViper.GetStringSlice("redis.addrs")
+	DefaultConfig.Redis.Addrs = RuntimeViper.GetStringSlice("redis.sentinel-addrs")
+	DefaultConfig.Redis.MasterName = RuntimeViper.GetString("redis.master-name")
 	DefaultConfig.Redis.Password = RuntimeViper.GetString("redis.password")
 	DefaultConfig.Redis.DB = RuntimeViper.GetInt("redis.DB")
 

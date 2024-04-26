@@ -65,6 +65,10 @@ func (cc *ChatController) ChatStream(ctx context.Context, c *app.RequestContext)
 	return
 }
 
+func (cc *ChatController) ChatPdf(ctx context.Context, c *app.RequestContext) {
+
+}
+
 func (cc *ChatController) ChatClearSession(ctx context.Context, c *app.RequestContext) {
 	var request struct {
 		UserId string

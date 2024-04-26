@@ -6,9 +6,23 @@ title = "TOML config for ollama-hertz"
 port = ":8080"
 
 [redis]
-addr = "localhost:6379"
-password = ""
-db = 0
+# 你需要设置redis的模式, standalone, cluster, sentinel
+# eg: standalone
+# model = standalone
+# addr = "localhost:6379"
+# password = ""
+# db = 0
+
+# eg: cluster
+# model = cluster
+# addrs = x.x.x.0:5001,x.x.x.0:5002,x.x.x.0:5003,x.x.x.0:5004,x.x.x.0:5005
+# password = ""
+# db = 0
+
+# eg: sentinel
+# model = "sentinel"
+# sentinelAddrs = x.x.x.0:5001,x.x.x.0:5002,x.x.x.0:5003
+# master-name = "master"
 
 [mysql]
 dsn = "root:09161549@(localhost:3306)/ollama?charset=utf8&parseTime=True"

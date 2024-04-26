@@ -13,9 +13,18 @@ type Config struct {
 }
 
 type RedisCfg struct {
-	Addr     string
-	Password string
-	DB       int
+	// Model standalone(单机模式)  cluster(集群模式) sentinel(哨兵模式)
+	Model string
+	// Addr 如果redis的模式是单机模式, 那么就设置这个字段
+	Addr string
+	// Addrs 如果redis的模式是集群模式，就设置这个字段
+	Addrs []string
+	// SentinelAddrs 如果redis的模式是哨兵模式，就需要设置哨兵的地址
+	SentinelAddrs []string
+	// MasterName 如果redis的模式是哨兵模式，就需要设置 master
+	MasterName string
+	Password   string
+	DB         int
 }
 
 type MySQLCfg struct {

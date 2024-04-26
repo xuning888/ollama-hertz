@@ -13,8 +13,13 @@ var (
 )
 
 type PromptService interface {
+
+	// PromptPage
+	// Note: 分页查询prompts
 	PromptPage(ctx context.Context, req *prompt.PromptPageReq) (prompts []*prompt.PromptPageRes, total int64, err error)
 
+	// AddOrUpdate
+	// Note: 新增或修改Prompt
 	AddOrUpdate(ctx context.Context, req *prompt.PromptAddOrUpdate) error
 }
 

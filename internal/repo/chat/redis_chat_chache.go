@@ -26,7 +26,7 @@ type Cache interface {
 }
 
 type RedisCache struct {
-	client     *redis.Client
+	client     redis.Cmdable
 	maxWindows int
 }
 
@@ -37,12 +37,12 @@ func (c *RedisCache) Load(ctx context.Context, userId string) (messages []*chat.
 		hlog.CtxErrorf(ctx, "load chat message failed, error: %v", err)
 		return
 	}
-	args := zRange.Val()
-	if args == nil || len(args) == 0 {
+	values := zRange.Val()
+	if values == nil || len(values) == 0 {
 		return nil, ErrorEmpty
 	}
-	result := make([]*chat.Content, 0, len(args))
-	for _, arg := range args {
+	result := make([]*chat.Content, 0, len(values))
+	for _, arg := range values {
 		var content chat.Content
 		err := json.Unmarshal([]byte(arg), &content)
 		if err != nil {
@@ -90,7 +90,7 @@ func (c *RedisCache) key(userId string) string {
 	return fmt.Sprintf("chat:session:%s", userId)
 }
 
-func NewRedisCache(client *redis.Client, maxWindows int) *RedisCache {
+func NewRedisCache(client redis.Cmdable, maxWindows int) *RedisCache {
 	return &RedisCache{
 		client:     client,
 		maxWindows: maxWindows,

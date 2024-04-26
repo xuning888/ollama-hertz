@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/pkg/errors"
@@ -10,6 +11,7 @@ import (
 	"github.com/xuning888/ollama-hertz/internal/dal/redis"
 	repo "github.com/xuning888/ollama-hertz/internal/repo/chat"
 	"github.com/xuning888/ollama-hertz/internal/schema/chat"
+	"github.com/xuning888/ollama-hertz/pkg/api"
 	"strings"
 	"time"
 )
@@ -36,7 +38,8 @@ func (c *ChatServiceImpl) Chat(ctx context.Context, req chat.ChatReq) (response 
 	content := req.Content
 	timeoutCtx, cancelFunc := context.WithTimeout(ctx, time.Second*time.Duration(timeoutSecond))
 	defer cancelFunc()
-	response, err = c.llm.Call(timeoutCtx, content)
+
+	response, err = llms.GenerateFromSinglePrompt(timeoutCtx, c.llm, req.Content)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			hlog.CtxErrorf(ctx, "chat faield, call llm timeout content: %v, error: %v", err, err)
@@ -102,9 +105,6 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 
 	userMillis := time.Now().UnixMilli()
 
-	timeout, cancelFunc := context.WithTimeout(ctx, time.Second*time.Duration(req.LlmTimeoutSecond))
-	defer cancelFunc()
-
 	cache := repo.NewRedisCache(redis.Client, req.MaxWindows)
 
 	messages, err := cache.Load(ctx, req.UserId)
@@ -120,30 +120,42 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 	}
 	content = append(content, llms.TextParts(llms.ChatMessageTypeHuman, req.Content))
 
-	var sbd strings.Builder
-	appCtx.Response.Header.Set("mime-type", "text/event-stream")
+	appCtx.Response.Header.Set("Content-Type", "application/x-ndjson")
+	appCtx.Response.Header.Set("Connection", "Keep-Alive")
+	appCtx.Response.Header.Set("X-Content-Type-Options", "nosniff")
 
-	_, err = c.llm.GenerateContent(timeout, content,
+	resp, err := c.llm.GenerateContent(ctx, content,
 		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			sbd.Write(chunk)
-			_, err2 := appCtx.Write(chunk)
+			responseData := api.SuccessWithData(string(chunk))
+			bytes, _ := json.Marshal(responseData)
+			_, err2 := appCtx.Write(bytes)
 			if err2 != nil {
 				return err2
 			}
+			_, err3 := appCtx.Write([]byte{'\n'})
+			if err3 != nil {
+				return err3
+			}
 			return appCtx.Flush()
-		}))
+		}),
+	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return ErrorCallLlmTimeout
 		}
+		hlog.CtxErrorf(ctx, "call llm has error: %v", err)
 		return err
 	}
 	assistantMillis := time.Now().UnixMilli()
-	res := sbd.String()
+	res := resp.Choices[0].Content
 	err = cache.Store(ctx, req.UserId, []*chat.Content{
 		chat.NewContext(chat.User, req.Content, userMillis),
 		chat.NewContext(chat.Assistant, res, assistantMillis)})
 	return
+}
+
+func (c *ChatServiceImpl) Embedding(ctx context.Context) {
+	c.llm.CreateEmbedding(ctx, nil)
 }
 
 func NewChatService(llm *ollama.LLM) *ChatServiceImpl {
