@@ -8,9 +8,9 @@ type ResponseData struct {
 }
 
 var (
-	SuccessResponseCode = &ResponseCode{Code: "S00000", Message: "成功"}
-	SystemError         = &ResponseCode{Code: "E00001", Message: "系统错误"}
-	ParamsError         = &ResponseData{Code: "E00002", Message: "参数错误"}
+	SuccessResponseCode = &ResponseCode{Code: "S00000", Message: "success"}
+	SystemError         = &ResponseCode{Code: "E00001", Message: "system error"}
+	ParamsError         = &ResponseData{Code: "E00002", Message: "params error"}
 )
 
 type ResponseCode struct {

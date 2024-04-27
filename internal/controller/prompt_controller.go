@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"context"
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
+	"github.com/gin-gonic/gin"
 	"github.com/xuning888/ollama-hertz/internal/schema/prompt"
 	"github.com/xuning888/ollama-hertz/internal/service"
 	"github.com/xuning888/ollama-hertz/pkg/api"
@@ -15,19 +13,19 @@ type PromptController struct {
 	promptService service.PromptService
 }
 
-func (p *PromptController) PromptPageInfo(ctx context.Context, c *app.RequestContext) {
+func (p *PromptController) PromptPageInfo(c *gin.Context) {
 
 	var request prompt.PromptPageReq
 
 	if err := c.BindQuery(&request); err != nil {
-		hlog.CtxErrorf(ctx, "chat fialed invalid json error: %v", err)
+		hlog.CtxErrorf(c, "chat fialed invalid json error: %v", err)
 		c.JSON(http.StatusOK, api.FailedWithMessage("Invalid JSON"))
 		return
 	}
 
-	prompts, total, err := p.promptService.PromptPage(ctx, &request)
+	prompts, total, err := p.promptService.PromptPage(c, &request)
 	if err != nil {
-		hlog.CtxErrorf(ctx, "prompt request faield with error: %v", err)
+		hlog.CtxErrorf(c, "prompt request faield with error: %v", err)
 		c.JSON(http.StatusOK, api.Failed())
 		return
 	}
@@ -41,16 +39,16 @@ func (p *PromptController) PromptPageInfo(ctx context.Context, c *app.RequestCon
 	c.JSON(http.StatusOK, api.SuccessWithData(pageInfo))
 }
 
-func (p *PromptController) PromptAddOrUpdate(ctx context.Context, c *app.RequestContext) {
+func (p *PromptController) PromptAddOrUpdate(c *gin.Context) {
 	var request prompt.PromptAddOrUpdate
 
-	if err := c.BindAndValidate(&request); err != nil {
-		hlog.CtxErrorf(ctx, "promptAddOrUpdate Invalid JSON error: %v", err)
+	if err := c.BindJSON(&request); err != nil {
+		hlog.CtxErrorf(c, "promptAddOrUpdate Invalid JSON error: %v", err)
 		c.JSON(http.StatusOK, api.FailedWithMessage(err.Error()))
 		return
 	}
 
-	err := p.promptService.AddOrUpdate(ctx, &request)
+	err := p.promptService.AddOrUpdate(c, &request)
 	if err != nil {
 		c.JSON(http.StatusOK, api.FailedWithMessage(err.Error()))
 		return
@@ -59,8 +57,8 @@ func (p *PromptController) PromptAddOrUpdate(ctx context.Context, c *app.Request
 	return
 }
 
-func (p *PromptController) Register(hertz *server.Hertz) {
-	promptGroup := hertz.Group("/api/v1/prompt")
+func (p *PromptController) Register(server *gin.Engine) {
+	promptGroup := server.Group("/api/v1/prompt")
 	promptGroup.GET("/page", p.PromptPageInfo)
 	promptGroup.POST("/addOrUpdate", p.PromptAddOrUpdate)
 }

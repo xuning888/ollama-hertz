@@ -23,6 +23,8 @@ type Cache interface {
 	Store(ctx context.Context, userId string, contents []*chat.Content) error
 	Load(ctx context.Context, userId string) (messages []*chat.Content, err error)
 	Clear(ctx context.Context, userId string) error
+	SaveSummary(ctx context.Context, userId string, summary string) error
+	LoadSummary(ctx context.Context, userId string) (string, error)
 }
 
 type RedisCache struct {
@@ -79,11 +81,30 @@ func (c *RedisCache) Store(ctx context.Context, userId string, contents []*chat.
 
 func (c *RedisCache) Clear(ctx context.Context, userId string) error {
 	key := c.key(userId)
-	return c.client.Del(ctx, key).Err()
+	err := c.client.Del(ctx, key).Err()
+	if err != nil {
+		return err
+	}
+	summaryKey := fmt.Sprintf("chat:session:summary:%s", userId)
+	return c.client.Del(ctx, summaryKey).Err()
 }
 
 func (c *RedisCache) trimWindow(ctx context.Context, key string) error {
 	return c.client.ZRemRangeByRank(ctx, key, 0, int64(-(c.maxWindows + 1))).Err()
+}
+
+func (c *RedisCache) SaveSummary(ctx context.Context, userId string, summary string) error {
+	key := fmt.Sprintf("chat:session:summary:%s", userId)
+	return c.client.Set(ctx, key, summary, -1).Err()
+}
+
+func (c *RedisCache) LoadSummary(ctx context.Context, userId string) (string, error) {
+	key := fmt.Sprintf("chat:session:summary:%s", userId)
+	cmdRes := c.client.Get(ctx, key)
+	if cmdRes.Err() != nil {
+		return "", cmdRes.Err()
+	}
+	return cmdRes.Val(), nil
 }
 
 func (c *RedisCache) key(userId string) string {

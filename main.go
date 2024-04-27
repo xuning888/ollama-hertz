@@ -4,15 +4,14 @@ package main
 
 import (
 	"context"
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/app/server"
-	"github.com/cloudwego/hertz/pkg/common/hlog"
-	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/gin-gonic/gin"
 	"github.com/xuning888/ollama-hertz/internal/controller"
 	"github.com/xuning888/ollama-hertz/internal/dal"
 	"github.com/xuning888/ollama-hertz/internal/service"
 	"github.com/xuning888/ollama-hertz/pkg/config"
+	"log"
 	"net/http"
+	"time"
 )
 
 func init() {
@@ -20,41 +19,43 @@ func init() {
 	dal.Init()
 }
 
-func initLLM() *ollama.LLM {
-	llm, err := ollama.New(
-		ollama.WithModel(config.DefaultConfig.LlmModel),
-		ollama.WithServerURL(config.DefaultConfig.OllmServerUrl),
-	)
-	if err != nil {
-		hlog.Infof("load model failed model: %v error: %v", config.DefaultConfig.LlmModel, err)
-		panic(err)
-	}
-	return llm
-}
-
-func Register(hertz *server.Hertz) {
-	// chat
-	llm := initLLM()
-	chatService := service.NewChatService(llm)
+func Register(router *gin.Engine) {
+	chatService := service.NewChatService()
 	chatController := controller.NewChatController(chatService)
-	chatController.Register(hertz)
-
-	// prompt
-	promptService := service.NewPromptService()
-	promptController := controller.NewPromptController(promptService)
-	promptController.Register(hertz)
+	chatController.Register(router)
 }
 
 func main() {
-	hertz := server.Default(server.WithHostPorts(config.DefaultConfig.ServerPort))
+	router := gin.Default()
+	// register html
+	router.Static("/", "./static")
 
-	hertz.Static("/", "static/")
-	Register(hertz)
+	// register router
+	Register(router)
 
-	// 重定向到index.html
-	hertz.GET("/", func(c context.Context, ctx *app.RequestContext) {
-		ctx.Redirect(http.StatusOK, []byte("/index.html"))
+	// create a http Server for the purpose of implementing graceful shutdown
+	srv := &http.Server{
+		Addr:    config.DefaultConfig.ServerPort,
+		Handler: router,
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- srv.ListenAndServe()
+	}()
+
+	// listen os shutdown signals such as kill -15 (ctrl + c), kill -9
+	if err := waitSignal(errChan); err != nil {
+		log.Printf("Received SIGINT %s scheduling shutdown...\n", err)
+	}
+
+	// shutdown gracefully timeout
+	timeout, cancelFunc := context.WithTimeout(context.Background(), time.Second*time.Duration(25))
+	defer cancelFunc()
+	// call shutdown and execute onShutdownHooks
+	if err := Shutdown(timeout, srv); err != nil {
+		log.Printf("Server shutdown error: %v\n", err)
 		return
-	})
-	hertz.Spin()
+	}
+	log.Println("Server shutdown success")
 }
