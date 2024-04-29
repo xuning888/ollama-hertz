@@ -5,21 +5,7 @@ var converter = new showdown.Converter();
 
 function send(e){
     e.preventDefault();
-    var prompt = $("#prompt").val().trimEnd();
-    $("#prompt").val("");
-    autosize.update($("#prompt"));
-
-    $("#printout").append(
-        "<div class='prompt-message'>" +
-        "<div style='white-space: pre-wrap;'>" +
-        prompt  +
-        "</div>" +
-        "<span class='message-loader js-loading spinner-border'></span>" +
-        "</div>"
-    );
-    window.scrollTo({top: document.body.scrollHeight, behavior:'smooth' });
-    runScript(prompt);
-    $(".js-logo").addClass("active");
+    chatStream()
 }
 
 $(document).ready(function(){
@@ -39,11 +25,40 @@ $(document).ready(function(){
     });
 });
 
+$(document).ready(function () {
+    $('.send-button').click(function () {
+        chatStream()
+    })
+})
+
+function chatStream() {
+    var prompt = $("#prompt").val().trimEnd();
+    $("#prompt").val("");
+    autosize.update($("#prompt"));
+
+    $("#printout").append(
+        "<div class='prompt-message'>" +
+        "<div style='white-space: pre-wrap;'>" +
+        prompt  +
+        "</div>" +
+        "<span class='message-loader js-loading spinner-border'></span>" +
+        "</div>"
+    );
+    window.scrollTo({top: document.body.scrollHeight, behavior:'smooth' });
+    runScript(prompt);
+    $(".js-logo").addClass("active");
+}
 
 async function runScript(prompt) {
     let id = Math.random().toString(36).substring(2, 7);
     let outId = "result-" + id;
     let accumulatedContent = "";
+
+    disableButtons();
+
+    if (prompt.trim() === "") {
+        return
+    }
 
     $("#printout").append(
         `<div class='px-3 py-3'><div id='${outId}' style='white-space: pre-wrap;'></div></div>`
@@ -89,12 +104,22 @@ async function runScript(prompt) {
         $("#" + outId).append(`<div>Error loading the response: ${error.message}</div>`);
     } finally {
         $(".js-loading").removeClass("spinner-border");
+        enableButtons()
     }
 }
 
+function disableButtons() {
+    $('.send-button, .clear-button').prop('disabled', true);
+}
+
+function enableButtons() {
+    $('.send-button, .clear-button').prop('disabled', false);
+}
 
 
 async function clearContent( action) {
+    // 禁用按钮
+    disableButtons();
 
     response = await fetch("/api/v1/chat/stream/clear", {
         method: "POST",
@@ -107,4 +132,7 @@ async function clearContent( action) {
     $("#printout").html("");
 
     $(".js-logo").removeClass("active");
+
+    // 操作完成，启用按钮
+    enableButtons();
 }
