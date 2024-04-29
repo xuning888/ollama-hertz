@@ -12,8 +12,6 @@ var RuntimeViper *viper.Viper
 func Init() {
 	RuntimeViper = viper.New()
 	RuntimeViper.SetConfigType("toml")
-	RuntimeViper = viper.New()
-	RuntimeViper.SetConfigType("toml")
 	RuntimeViper.SetConfigName("cfg")
 	RuntimeViper.AddConfigPath("/etc/ollama-hertz/")
 	RuntimeViper.AddConfigPath("./config/")
@@ -43,5 +41,5 @@ func Init() {
 
 	// mysql config
 	DefaultConfig.MySQL.DSN = RuntimeViper.GetString("mysql.dsn")
-	log.Printf("config: %v\n", DefaultConfig)
+	log.Printf("init config success: %v\n", DefaultConfig)
 }

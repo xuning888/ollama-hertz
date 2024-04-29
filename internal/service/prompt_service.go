@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/xuning888/ollama-hertz/internal/dal/mysql"
 	modelPrompt "github.com/xuning888/ollama-hertz/internal/model/prompt"
 	"github.com/xuning888/ollama-hertz/internal/schema/prompt"
+	"github.com/xuning888/ollama-hertz/pkg/logger"
 )
 
 var (
@@ -23,7 +23,10 @@ type PromptService interface {
 	AddOrUpdate(ctx context.Context, req *prompt.PromptAddOrUpdate) error
 }
 
-type PromptServiceImpl struct{}
+type PromptServiceImpl struct {
+	promptDao *mysql.PromptDao
+	lg        logger.Logger
+}
 
 func (p *PromptServiceImpl) AddOrUpdate(ctx context.Context, req *prompt.PromptAddOrUpdate) error {
 	entity := &modelPrompt.Prompt{}
@@ -33,17 +36,17 @@ func (p *PromptServiceImpl) AddOrUpdate(ctx context.Context, req *prompt.PromptA
 	entity.Temperature = req.Temperature
 	if entity.ID == uint(0) {
 		// add
-		err := mysql.PromptAdd(ctx, entity)
+		err := p.promptDao.PromptAdd(ctx, entity)
 		if err != nil {
-			hlog.CtxErrorf(ctx, "add prompt failed with error: %v", err)
+			p.lg.Errorf("AddOrUpdate add prompt failed with error: %v", err)
 			return err
 		}
 		return nil
 	}
 
-	err := mysql.PromptUpdateById(ctx, entity)
+	err := p.promptDao.PromptUpdateById(ctx, entity)
 	if err != nil {
-		hlog.CtxErrorf(ctx, "update prompt fialed with error: %v", err)
+		p.lg.Errorf("AddOrUpdate prompt fialed with error: %v", err)
 		return err
 	}
 	return nil
@@ -54,7 +57,7 @@ func (p *PromptServiceImpl) PromptPage(ctx context.Context, req *prompt.PromptPa
 
 	pageSize, pageNum, name := req.PageSize, req.PageNum, req.Name
 
-	dbPrompts, total, err := mysql.PromptPageInfo(ctx, pageSize, pageNum, name)
+	dbPrompts, total, err := p.promptDao.PromptPageInfo(ctx, pageSize, pageNum, name)
 	if err != nil {
 		return
 	}
@@ -75,6 +78,9 @@ func (p *PromptServiceImpl) PromptPage(ctx context.Context, req *prompt.PromptPa
 	return
 }
 
-func NewPromptService() *PromptServiceImpl {
-	return &PromptServiceImpl{}
+func NewPromptService(promptDao *mysql.PromptDao) *PromptServiceImpl {
+	return &PromptServiceImpl{
+		promptDao: promptDao,
+		lg:        logger.Named("PromptServiceImpl"),
+	}
 }

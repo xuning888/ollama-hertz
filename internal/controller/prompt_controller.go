@@ -1,16 +1,17 @@
 package controller
 
 import (
-	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/gin-gonic/gin"
 	"github.com/xuning888/ollama-hertz/internal/schema/prompt"
 	"github.com/xuning888/ollama-hertz/internal/service"
 	"github.com/xuning888/ollama-hertz/pkg/api"
+	"github.com/xuning888/ollama-hertz/pkg/logger"
 	"net/http"
 )
 
 type PromptController struct {
 	promptService service.PromptService
+	lg            logger.Logger
 }
 
 func (p *PromptController) PromptPageInfo(c *gin.Context) {
@@ -18,14 +19,14 @@ func (p *PromptController) PromptPageInfo(c *gin.Context) {
 	var request prompt.PromptPageReq
 
 	if err := c.BindQuery(&request); err != nil {
-		hlog.CtxErrorf(c, "chat fialed invalid json error: %v", err)
+		p.lg.Errorf("PromptPageInfo request invalid json error: %v", err)
 		c.JSON(http.StatusOK, api.FailedWithMessage("Invalid JSON"))
 		return
 	}
 
 	prompts, total, err := p.promptService.PromptPage(c, &request)
 	if err != nil {
-		hlog.CtxErrorf(c, "prompt request faield with error: %v", err)
+		p.lg.Errorf("PromptPageInfo prompt request failed with error: %v", err)
 		c.JSON(http.StatusOK, api.Failed())
 		return
 	}
@@ -43,7 +44,7 @@ func (p *PromptController) PromptAddOrUpdate(c *gin.Context) {
 	var request prompt.PromptAddOrUpdate
 
 	if err := c.BindJSON(&request); err != nil {
-		hlog.CtxErrorf(c, "promptAddOrUpdate Invalid JSON error: %v", err)
+		p.lg.Errorf("PromptAddOrUpdate invalid json error: %v", err)
 		c.JSON(http.StatusOK, api.FailedWithMessage(err.Error()))
 		return
 	}
@@ -66,5 +67,6 @@ func (p *PromptController) Register(server *gin.Engine) {
 func NewPromptController(promptService service.PromptService) *PromptController {
 	return &PromptController{
 		promptService: promptService,
+		lg:            logger.Named("PromptController"),
 	}
 }

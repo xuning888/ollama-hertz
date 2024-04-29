@@ -3,20 +3,20 @@
 package main
 
 import (
-	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/xuning888/ollama-hertz/internal/controller"
 	"github.com/xuning888/ollama-hertz/internal/dal"
 	"github.com/xuning888/ollama-hertz/internal/service"
 	"github.com/xuning888/ollama-hertz/pkg/config"
-	"log"
-	"net/http"
+	"github.com/xuning888/ollama-hertz/pkg/http"
+	"github.com/xuning888/ollama-hertz/pkg/logger"
 	"time"
 )
 
 func init() {
 	config.Init()
 	dal.Init()
+	logger.LoggerInit()
 }
 
 func Register(router *gin.Engine) {
@@ -33,29 +33,10 @@ func main() {
 	// register router
 	Register(router)
 
-	// create a http Server for the purpose of implementing graceful shutdown
-	srv := &http.Server{
-		Addr:    config.DefaultConfig.ServerPort,
-		Handler: router,
-	}
-
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- srv.ListenAndServe()
-	}()
-
-	// listen os shutdown signals such as kill -15 (ctrl + c), kill -9
-	if err := waitSignal(errChan); err != nil {
-		log.Printf("Received SIGINT %s scheduling shutdown...\n", err)
-	}
-
-	// shutdown gracefully timeout
-	timeout, cancelFunc := context.WithTimeout(context.Background(), time.Second*time.Duration(25))
-	defer cancelFunc()
-	// call shutdown and execute onShutdownHooks
-	if err := Shutdown(timeout, srv); err != nil {
-		log.Printf("Server shutdown error: %v\n", err)
-		return
-	}
-	log.Println("Server shutdown success")
+	server := http.NewServer(
+		router,
+		config.DefaultConfig.ServerPort,
+		http.WithShutdownTimout(time.Second*time.Duration(25)),
+	)
+	server.Serve()
 }

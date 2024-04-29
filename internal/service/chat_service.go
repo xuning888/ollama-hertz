@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/tmc/langchaingo/llms"
@@ -13,6 +12,7 @@ import (
 	"github.com/xuning888/ollama-hertz/internal/schema/chat"
 	"github.com/xuning888/ollama-hertz/pkg/api"
 	"github.com/xuning888/ollama-hertz/pkg/config"
+	"github.com/xuning888/ollama-hertz/pkg/logger"
 	"strings"
 	"time"
 )
@@ -31,6 +31,7 @@ type ChatService interface {
 }
 
 type ChatServiceImpl struct {
+	lg logger.Logger
 }
 
 func (c *ChatServiceImpl) ClearSession(ctx context.Context, userId string) error {
@@ -46,7 +47,7 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 	llm, err := ollama.New(ollama.WithModel(llmModel),
 		ollama.WithServerURL(config.DefaultConfig.OllmServerUrl))
 	if err != nil {
-		hlog.CtxErrorf(ctx, "create ollama llm error: %v", err)
+		c.lg.Errorf("ChatWithSessionStream create ollama llm error: %v", err)
 		return err
 	}
 
@@ -57,6 +58,7 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 	messages, err := cache.Load(ctx, userId)
 	if err != nil {
 		if !errors.Is(err, repo.ErrorEmpty) {
+			c.lg.Errorf("ChatWithSessionStream query message windows error: %v", err)
 			return err
 		}
 	}
@@ -73,9 +75,10 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
+			c.lg.Errorf("call llm failed with error: %v", err)
 			return ErrorCallLlmTimeout
 		}
-		hlog.CtxErrorf(ctx, "call llm has error: %v", err)
+		c.lg.Errorf("call llm failed with error: %v", err)
 		return errors.New("call llm failed")
 	}
 	assistantMillis := time.Now().UnixMilli()
@@ -108,7 +111,7 @@ func (c *ChatServiceImpl) summary(ctx context.Context, content []llms.MessageCon
 		return "", err
 	}
 	summary = sbd.String()
-	hlog.CtxInfof(ctx, "生成摘要内容: %v", summary)
+	c.lg.Infof("生成摘要内容: %v", summary)
 	return
 }
 
@@ -133,5 +136,7 @@ func makeStreamHandler(c *gin.Context) func(ctx context.Context, chunk []byte) e
 }
 
 func NewChatService() *ChatServiceImpl {
-	return &ChatServiceImpl{}
+	return &ChatServiceImpl{
+		lg: logger.Named("ChatServiceImpl"),
+	}
 }

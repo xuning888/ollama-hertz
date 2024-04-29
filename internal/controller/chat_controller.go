@@ -1,22 +1,23 @@
 package controller
 
 import (
-	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/gin-gonic/gin"
 	"github.com/xuning888/ollama-hertz/internal/schema/chat"
 	"github.com/xuning888/ollama-hertz/internal/service"
 	"github.com/xuning888/ollama-hertz/pkg/api"
+	"github.com/xuning888/ollama-hertz/pkg/logger"
 	"net/http"
 )
 
 type ChatController struct {
 	chatService service.ChatService
+	lg          logger.Logger
 }
 
 func (cc *ChatController) ChatSessionStream(c *gin.Context) {
 	var request chat.ChatWithSessonReq
 	if err := c.BindJSON(&request); err != nil {
-		hlog.CtxErrorf(c, "chatWithSession fialed invalid json error: %v", err)
+		cc.lg.Errorf("ChatSessionStream failed invalid json error:%v", err)
 		c.JSON(http.StatusOK, api.FailedWithMessage("Invalid JSON"))
 		return
 	}
@@ -35,12 +36,12 @@ func (cc *ChatController) ChatClearSession(c *gin.Context) {
 	}
 
 	if err := c.BindJSON(&request); err != nil {
-		hlog.CtxErrorf(c, "chatWithSession fialed invalid json error: %v", err)
+		cc.lg.Errorf("ChatClearSession failed invalid json error: %v", err)
 		c.JSON(http.StatusOK, api.FailedWithMessage("Invalid JSON"))
 		return
 	}
 
-	hlog.CtxInfof(c, "clear chat context, request: %v", request)
+	cc.lg.Infof("ChatClearSession clear chat context, request: %v", request)
 
 	err := cc.chatService.ClearSession(c, request.UserId)
 	if err != nil {
@@ -59,5 +60,6 @@ func (cc *ChatController) Register(engine *gin.Engine) {
 func NewChatController(chatService service.ChatService) *ChatController {
 	return &ChatController{
 		chatService: chatService,
+		lg:          logger.Named("ChatController"),
 	}
 }
