@@ -13,10 +13,10 @@ create database ollama utf8mb4;
 ```
 5. 把script 下的sql脚本写入数据库中
 
-6. 修改pkg/config/cfg.toml配置文件，并把它移动把 /etc/ollama-hertz目录下
+6. 修改pkg/config/cfg.toml配置文件，并把它移动把 /etc/yoyoyo 目录下
 ```shell
-sudo make -p /etc/ollama-hertz
-sudo cp ./script/cfg.tomal /etc/ollama-hertz/cfg.toml
+sudo make -p /etc/yoyoyo
+sudo cp ./script/cfg.tomal /etc/yoyoyo/cfg.toml
 ```
 7. 启动项目, 回到项目的跟目录，执行以下命令
 ```shell

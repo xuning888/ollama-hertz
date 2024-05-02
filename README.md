@@ -15,10 +15,10 @@ create database ollama utf8mb4;
 ```
 5. Write the sql script from the script directory into the database
 
-6. Modify the pkg/config/cfg.toml configuration file and move it to the /etc/ollama-hertz directory
+6. Modify the pkg/config/cfg.toml configuration file and move it to the /etc/yoyoyo directory
 ```shell
-sudo make -p /etc/ollama-hertz
-sudo cp ./script/cfg.tomal /etc/ollama-hertz/cfg.toml
+sudo make -p /etc/yoyoyo
+sudo cp ./script/cfg.tomal /etc/yoyoyo/cfg.toml
 ```
 7. Start the project, go back to the project root directory, and execute the following command
 ```shell

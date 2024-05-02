@@ -13,7 +13,7 @@ func Init() {
 	RuntimeViper = viper.New()
 	RuntimeViper.SetConfigType("toml")
 	RuntimeViper.SetConfigName("cfg")
-	RuntimeViper.AddConfigPath("/etc/ollama-hertz/")
+	RuntimeViper.AddConfigPath("/etc/yoyoyo/")
 	RuntimeViper.AddConfigPath("./config/")
 	if err := RuntimeViper.ReadInConfig(); err != nil {
 		panic(fmt.Errorf("fatal error config file: %s", err))
