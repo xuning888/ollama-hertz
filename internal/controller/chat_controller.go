@@ -2,10 +2,10 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/xuning888/ollama-hertz/internal/schema/chat"
-	"github.com/xuning888/ollama-hertz/internal/service"
-	"github.com/xuning888/ollama-hertz/pkg/api"
-	"github.com/xuning888/ollama-hertz/pkg/logger"
+	"github.com/xuning888/yoyoyo/internal/schema/chat"
+	"github.com/xuning888/yoyoyo/internal/service"
+	"github.com/xuning888/yoyoyo/pkg/api"
+	"github.com/xuning888/yoyoyo/pkg/logger"
 	"net/http"
 )
 

@@ -3,9 +3,9 @@ package prompt
 import (
 	"context"
 	"fmt"
-	"github.com/xuning888/ollama-hertz/internal/dal/database"
-	"github.com/xuning888/ollama-hertz/internal/model/prompt"
-	"github.com/xuning888/ollama-hertz/pkg/logger"
+	"github.com/xuning888/yoyoyo/internal/dal/database"
+	"github.com/xuning888/yoyoyo/internal/model/prompt"
+	"github.com/xuning888/yoyoyo/pkg/logger"
 )
 
 type PromptDao struct {

@@ -3,7 +3,7 @@ package redis
 import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
-	"github.com/xuning888/ollama-hertz/config"
+	"github.com/xuning888/yoyoyo/config"
 )
 
 var Client redis.Cmdable

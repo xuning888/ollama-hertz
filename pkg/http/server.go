@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/gin-gonic/gin"
-	"github.com/xuning888/ollama-hertz/pkg/logger"
+	"github.com/xuning888/yoyoyo/pkg/logger"
 	"net/http"
 	"os"
 	"os/signal"

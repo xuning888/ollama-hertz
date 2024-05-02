@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/xuning888/ollama-hertz/config"
+	"github.com/xuning888/yoyoyo/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

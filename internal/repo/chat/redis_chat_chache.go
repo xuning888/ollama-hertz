@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
-	"github.com/xuning888/ollama-hertz/internal/schema/chat"
-	"github.com/xuning888/ollama-hertz/pkg/logger"
+	"github.com/xuning888/yoyoyo/internal/schema/chat"
+	"github.com/xuning888/yoyoyo/pkg/logger"
 )
 
 var (

@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	modelPrompt "github.com/xuning888/ollama-hertz/internal/model/prompt"
-	prompt2 "github.com/xuning888/ollama-hertz/internal/repo/prompt"
-	"github.com/xuning888/ollama-hertz/internal/schema/prompt"
-	"github.com/xuning888/ollama-hertz/pkg/logger"
+	modelPrompt "github.com/xuning888/yoyoyo/internal/model/prompt"
+	prompt2 "github.com/xuning888/yoyoyo/internal/repo/prompt"
+	"github.com/xuning888/yoyoyo/internal/schema/prompt"
+	"github.com/xuning888/yoyoyo/pkg/logger"
 )
 
 var (

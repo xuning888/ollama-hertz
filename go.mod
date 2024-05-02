@@ -1,4 +1,4 @@
-module github.com/xuning888/ollama-hertz
+module github.com/xuning888/yoyoyo
 
 go 1.22.0
 

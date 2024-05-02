@@ -1,8 +1,8 @@
 package dal
 
 import (
-	"github.com/xuning888/ollama-hertz/internal/dal/database"
-	"github.com/xuning888/ollama-hertz/internal/dal/redis"
+	"github.com/xuning888/yoyoyo/internal/dal/database"
+	"github.com/xuning888/yoyoyo/internal/dal/redis"
 )
 
 func Init() {
