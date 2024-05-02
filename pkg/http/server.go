@@ -20,6 +20,7 @@ type Options func(*Server)
 // OnShutdown is a callback function that is called on shutdown.
 type OnShutdown func(ctx context.Context)
 
+// Server is an HTTP server which implements graceful shutdown and shutdown hooks
 type Server struct {
 	shutdownTimeout time.Duration
 	srv             *http.Server
@@ -59,6 +60,7 @@ func (s *Server) AddShutdownHook(shutdownHook OnShutdown) {
 }
 
 func (s *Server) Serve() {
+	defer s.lg.Sync()
 
 	errCh := make(chan error)
 	go func() {
@@ -67,7 +69,7 @@ func (s *Server) Serve() {
 
 	// listen os shutdown signals such as kill -15 (ctrl + c), kill -9
 	if err := waitSignal(errCh); err != nil {
-		s.lg.Errorf("Received SIGINT %v scheduling shutdown...", err)
+		s.lg.Warnf("Received SIGINT %v scheduling shutdown...", err)
 	}
 
 	// shutdown gracefully timeout
@@ -83,6 +85,7 @@ func (s *Server) Serve() {
 }
 
 func (s *Server) Shutdown(ctx context.Context) (err error) {
+	defer s.lg.Sync()
 
 	ch := make(chan struct{})
 	// execute shutdown hook

@@ -4,10 +4,10 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/xuning888/ollama-hertz/config"
 	"github.com/xuning888/ollama-hertz/internal/controller"
 	"github.com/xuning888/ollama-hertz/internal/dal"
 	"github.com/xuning888/ollama-hertz/internal/service"
-	"github.com/xuning888/ollama-hertz/pkg/config"
 	"github.com/xuning888/ollama-hertz/pkg/http"
 	"github.com/xuning888/ollama-hertz/pkg/logger"
 	"time"
@@ -16,7 +16,7 @@ import (
 func init() {
 	config.Init()
 	dal.Init()
-	logger.LoggerInit()
+	logger.InitLogger()
 }
 
 func Register(router *gin.Engine) {

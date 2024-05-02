@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"github.com/xuning888/ollama-hertz/internal/dal/mysql"
 	modelPrompt "github.com/xuning888/ollama-hertz/internal/model/prompt"
+	prompt2 "github.com/xuning888/ollama-hertz/internal/repo/prompt"
 	"github.com/xuning888/ollama-hertz/internal/schema/prompt"
 	"github.com/xuning888/ollama-hertz/pkg/logger"
 )
@@ -24,7 +24,7 @@ type PromptService interface {
 }
 
 type PromptServiceImpl struct {
-	promptDao *mysql.PromptDao
+	promptDao *prompt2.PromptDao
 	lg        logger.Logger
 }
 
@@ -78,7 +78,7 @@ func (p *PromptServiceImpl) PromptPage(ctx context.Context, req *prompt.PromptPa
 	return
 }
 
-func NewPromptService(promptDao *mysql.PromptDao) *PromptServiceImpl {
+func NewPromptService(promptDao *prompt2.PromptDao) *PromptServiceImpl {
 	return &PromptServiceImpl{
 		promptDao: promptDao,
 		lg:        logger.Named("PromptServiceImpl"),

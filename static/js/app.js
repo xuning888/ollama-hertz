@@ -68,7 +68,7 @@ async function runScript(prompt) {
         const response = await fetch("/api/v1/chat/stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: prompt, llmTimeoutSecond: 30, userId: "1111", maxWindows: 30, llmModel: "llama3" }),
+            body: JSON.stringify({ content: prompt, llmTimeoutSecond: 30, userId: "1111", maxWindows: 30, llmModel: "qwen:14b" }),
         });
 
         if (!response.ok) {

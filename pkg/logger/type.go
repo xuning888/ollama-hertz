@@ -12,4 +12,6 @@ type Logger interface {
 	Errorf(format string, args ...interface{})
 	// Fatalf logs messages at FATAL level.
 	Fatalf(format string, args ...interface{})
+	// Sync sync
+	Sync() error
 }

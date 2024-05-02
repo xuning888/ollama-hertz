@@ -29,7 +29,5 @@ type RedisCfg struct {
 
 type MySQLCfg struct {
 	DSN      string
-	Username string
-	Password string
 	LogModel logger.LogLevel
 }

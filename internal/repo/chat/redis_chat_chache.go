@@ -23,8 +23,6 @@ type Cache interface {
 	Store(ctx context.Context, userId string, contents []*chat.Content) error
 	Load(ctx context.Context, userId string) (messages []*chat.Content, err error)
 	Clear(ctx context.Context, userId string) error
-	SaveSummary(ctx context.Context, userId string, summary string) error
-	LoadSummary(ctx context.Context, userId string) (string, error)
 }
 
 type RedisCache struct {
@@ -34,14 +32,17 @@ type RedisCache struct {
 }
 
 func (c *RedisCache) Load(ctx context.Context, userId string) (messages []*chat.Content, err error) {
+	defer c.lg.Sync()
 	key := c.key(userId)
+	c.lg.Infof("load history messages key: %s", key)
 	zRange := c.client.ZRange(ctx, key, 0, -1)
 	if err = zRange.Err(); err != nil {
-		c.lg.Errorf("Load chat message failed, error: %v", err)
+		c.lg.Errorf("load chat history messages failed, key: %s error: %v", key, err)
 		return
 	}
 	values := zRange.Val()
 	if values == nil || len(values) == 0 {
+		c.lg.Infof("load chat history messages empty, key: %s", key)
 		return nil, ErrorEmpty
 	}
 	result := make([]*chat.Content, 0, len(values))
@@ -49,63 +50,55 @@ func (c *RedisCache) Load(ctx context.Context, userId string) (messages []*chat.
 		var content chat.Content
 		err := json.Unmarshal([]byte(arg), &content)
 		if err != nil {
+			c.lg.Errorf("Load messages json unmarshal key: %s, error: %v", key, err)
 			return nil, ErrorUnmarshal
 		}
 		result = append(result, &content)
 	}
 	messages = result
+	c.lg.Infof("load chat history messages success size: %d, key: %s", len(messages), key)
 	return
 }
 
-func (c *RedisCache) Store(ctx context.Context, userId string, contents []*chat.Content) error {
+func (c *RedisCache) Store(ctx context.Context, userId string, contents []*chat.Content) (err error) {
+	defer c.lg.Sync()
 	key := c.key(userId)
+	if len(contents) == 0 {
+		c.lg.Infof("store chat messages is empty key: %s", key)
+		return
+	}
+	c.lg.Infof("sotre chat messages key: %s, messages size: %d", key, len(contents))
 	members := make([]redis.Z, 0, len(contents))
 	for _, content := range contents {
-		message, err := json.Marshal(content)
-		if err != nil {
-			c.lg.Errorf("Store chat message failed marshal content error: %v", err)
-			return err
+		message, err2 := json.Marshal(content)
+		if err2 != nil {
+			c.lg.Errorf("Store chat messages failed marshal key: %s, content: %v error: %v", key, content, err)
+			return err2
 		}
-		members = append(members, redis.Z{
-			Score:  float64(content.Timestamp),
-			Member: message,
-		})
+		members = append(members, redis.Z{Score: float64(content.Timestamp), Member: message})
 	}
-	c.lg.Infof("Store chat message size: %d", len(members))
 	intCmd := c.client.ZAdd(ctx, key, members...)
-	if err := intCmd.Err(); err != nil {
-		c.lg.Errorf("store chat message field error: %v", err)
-		return err
+	if err3 := intCmd.Err(); err3 != nil {
+		c.lg.Errorf("store chat messages field key: %s error: %v", key, err)
+		return err3
 	}
 	return c.trimWindow(ctx, key)
 }
 
-func (c *RedisCache) Clear(ctx context.Context, userId string) error {
+func (c *RedisCache) Clear(ctx context.Context, userId string) (err error) {
+	defer c.lg.Sync()
 	key := c.key(userId)
-	err := c.client.Del(ctx, key).Err()
+	c.lg.Infof("clear session key: %v", key)
+	err = c.client.Del(ctx, key).Err()
 	if err != nil {
+		c.lg.Errorf("clear session key: %v error: %v", key, err)
 		return err
 	}
-	summaryKey := fmt.Sprintf("chat:session:summary:%s", userId)
-	return c.client.Del(ctx, summaryKey).Err()
+	return
 }
 
 func (c *RedisCache) trimWindow(ctx context.Context, key string) error {
 	return c.client.ZRemRangeByRank(ctx, key, 0, int64(-(c.maxWindows + 1))).Err()
-}
-
-func (c *RedisCache) SaveSummary(ctx context.Context, userId string, summary string) error {
-	key := fmt.Sprintf("chat:session:summary:%s", userId)
-	return c.client.Set(ctx, key, summary, -1).Err()
-}
-
-func (c *RedisCache) LoadSummary(ctx context.Context, userId string) (string, error) {
-	key := fmt.Sprintf("chat:session:summary:%s", userId)
-	cmdRes := c.client.Get(ctx, key)
-	if cmdRes.Err() != nil {
-		return "", cmdRes.Err()
-	}
-	return cmdRes.Val(), nil
 }
 
 func (c *RedisCache) key(userId string) string {

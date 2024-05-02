@@ -7,23 +7,21 @@ import (
 	"time"
 )
 
-var GlobalLogger *zap.Logger
+var globalLogger *zap.Logger
 
-var GlobalSugaredLogger *zap.SugaredLogger
-
-func LoggerInit() {
+func InitLogger() {
 	lgCfg := DefaultZapLoggerConfig
 	logger, err := lgCfg.Build()
 	if err != nil {
 		panic(fmt.Errorf("init logger failed: %w", err))
 	}
 	zap.ReplaceGlobals(logger)
-	GlobalLogger = logger
-	GlobalSugaredLogger = logger.Sugar()
+	globalLogger = logger
 }
 
 func Named(name string) Logger {
-	return GlobalLogger.Named(name).Sugar()
+	sugar := globalLogger.Named(name).Sugar()
+	return sugar
 }
 
 var DefaultLevel = zap.InfoLevel

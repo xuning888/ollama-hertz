@@ -3,21 +3,26 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/xuning888/ollama-hertz/config"
 	"github.com/xuning888/ollama-hertz/internal/dal/redis"
 	repo "github.com/xuning888/ollama-hertz/internal/repo/chat"
 	"github.com/xuning888/ollama-hertz/internal/schema/chat"
 	"github.com/xuning888/ollama-hertz/pkg/api"
-	"github.com/xuning888/ollama-hertz/pkg/config"
 	"github.com/xuning888/ollama-hertz/pkg/logger"
-	"strings"
+	"net/http"
 	"time"
 )
 
 var _ ChatService = (*ChatServiceImpl)(nil)
+
+var client = &http.Client{
+	Transport: http.DefaultTransport,
+}
 
 var (
 	ErrorCallLlmTimeout = errors.New("call llm timeout")
@@ -41,16 +46,16 @@ func (c *ChatServiceImpl) ClearSession(ctx context.Context, userId string) error
 
 func (c *ChatServiceImpl) ChatWithSessionStream(
 	ctx context.Context, req chat.ChatWithSessonReq, appCtx *gin.Context) (err error) {
-
 	userId, llmModel, maxWindows := req.UserId, req.LlmModel, req.MaxWindows
-
-	llm, err := ollama.New(ollama.WithModel(llmModel),
-		ollama.WithServerURL(config.DefaultConfig.OllmServerUrl))
+	llm, err := ollama.New(
+		ollama.WithModel(llmModel),
+		ollama.WithHTTPClient(client),
+		ollama.WithServerURL(config.DefaultConfig.OllmServerUrl),
+	)
 	if err != nil {
 		c.lg.Errorf("ChatWithSessionStream create ollama llm error: %v", err)
 		return err
 	}
-
 	userMillis := time.Now().UnixMilli()
 	cache := repo.NewRedisCache(redis.Client, maxWindows)
 
@@ -71,7 +76,7 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 	curCtxMessage := append(historyMessage, llms.TextParts(llms.ChatMessageTypeHuman, req.Content))
 	// call llm
 	resp, err := llm.GenerateContent(ctx, curCtxMessage,
-		llms.WithStreamingFunc(makeStreamHandler(appCtx)),
+		llms.WithStreamingFunc(c.makeStreamHandler(appCtx)),
 	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -82,7 +87,12 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 		return errors.New("call llm failed")
 	}
 	assistantMillis := time.Now().UnixMilli()
-	res := resp.Choices[0].Content
+	choice := resp.Choices[0]
+	info := choice.GenerationInfo
+	completionTokens, promptTokens, totalTokens := info["CompletionTokens"], info["PromptTokens"], info["TotalTokens"]
+	c.lg.Infof("totalTokens: %v, PromptTokens: %v, completionTokens: %v", totalTokens, promptTokens, completionTokens)
+
+	res := choice.Content
 	err = cache.Store(ctx, req.UserId, []*chat.Content{
 		chat.NewContext(chat.User, req.Content, userMillis),
 		chat.NewContext(chat.Assistant, res, assistantMillis)})
@@ -92,45 +102,22 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 	return
 }
 
-func (c *ChatServiceImpl) summary(ctx context.Context, content []llms.MessageContent) (summary string, err error) {
-
-	content = append(content, llms.TextParts(llms.ChatMessageTypeSystem,
-		"为了帮助AI理解对话内容，为这一些列对话内容生成摘要"))
-	var sbd strings.Builder
-	llm, err := ollama.New(
-		ollama.WithModel(config.DefaultConfig.LlmModel),
-		ollama.WithServerURL(config.DefaultConfig.OllmServerUrl),
-		ollama.WithRunnerMainGPU(8),
-	)
-	_, err = llm.GenerateContent(context.Background(), content,
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			sbd.Write(chunk)
-			return nil
-		}))
-	if err != nil {
-		return "", err
-	}
-	summary = sbd.String()
-	c.lg.Infof("生成摘要内容: %v", summary)
-	return
-}
-
-func makeStreamHandler(c *gin.Context) func(ctx context.Context, chunk []byte) error {
-	c.Header("Content-Type", "application/x-ndjson")
-	c.Header("Connection", "Keep-Alive")
-	c.Header("X-Content-Type-Options", "nosniff")
+func (c *ChatServiceImpl) makeStreamHandler(appCtx *gin.Context) func(ctx context.Context, chunk []byte) error {
+	appCtx.Header("Content-Type", "application/x-ndjson")
+	appCtx.Header("Connection", "Keep-Alive")
+	appCtx.Header("X-Content-Type-Options", "nosniff")
 	return func(ctx context.Context, chunk []byte) error {
 		responseData := api.SuccessWithData(string(chunk))
 		bytes, _ := json.Marshal(responseData)
-		_, err := c.Writer.Write(bytes)
-		if err != nil {
-			return err
+		_, err1 := appCtx.Writer.Write(bytes)
+		if err1 != nil {
+			return fmt.Errorf("write stream response error: %w", err1)
 		}
-		_, err = c.Writer.Write([]byte{'\n'})
-		if err != nil {
-			return err
+		_, err2 := appCtx.Writer.Write([]byte{'\n'})
+		if err2 != nil {
+			return fmt.Errorf("write stream LF error: %w", err2)
 		}
-		c.Writer.Flush()
+		appCtx.Writer.Flush()
 		return nil
 	}
 }

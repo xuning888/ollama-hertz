@@ -15,6 +15,7 @@ type PromptController struct {
 }
 
 func (p *PromptController) PromptPageInfo(c *gin.Context) {
+	defer p.lg.Sync()
 
 	var request prompt.PromptPageReq
 
@@ -41,6 +42,7 @@ func (p *PromptController) PromptPageInfo(c *gin.Context) {
 }
 
 func (p *PromptController) PromptAddOrUpdate(c *gin.Context) {
+	defer p.lg.Sync()
 	var request prompt.PromptAddOrUpdate
 
 	if err := c.BindJSON(&request); err != nil {

@@ -1,7 +1,7 @@
-package mysql
+package database
 
 import (
-	"github.com/xuning888/ollama-hertz/pkg/config"
+	"github.com/xuning888/ollama-hertz/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

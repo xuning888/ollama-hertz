@@ -1,4 +1,4 @@
-create table prompt
+create table if not exists prompt
 (
     id          bigint(20)   not null auto_increment comment '主键',
     name        varchar(256) not null default '' comment '提示词的名称',
@@ -12,7 +12,7 @@ create table prompt
 ) default charset utf8mb4
   engine innodb comment '提示词主表';
 
-create table prompt_item
+create table if not exists prompt_item
 (
     id         bigint(20)  not null auto_increment comment '主键',
     prompt_id  bigint(20)  not null default 0 comment '关联的主键',

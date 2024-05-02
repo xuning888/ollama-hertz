@@ -1,7 +1,9 @@
-package mysql
+package prompt
 
 import (
 	"context"
+	"fmt"
+	"github.com/xuning888/ollama-hertz/internal/dal/database"
 	"github.com/xuning888/ollama-hertz/internal/model/prompt"
 	"github.com/xuning888/ollama-hertz/pkg/logger"
 )
@@ -13,7 +15,7 @@ type PromptDao struct {
 func (pp *PromptDao) PromptPageInfo(ctx context.Context, pageSze int, pageNum int, nameLike string) (
 	prompts []*prompt.Prompt, total int64, err error) {
 
-	query := DB.WithContext(ctx).Model(&prompt.Prompt{})
+	query := database.DB.WithContext(ctx).Model(&prompt.Prompt{})
 	if nameLike != "" {
 		query = query.Where("name like ?", "%"+nameLike+"%")
 	}
@@ -32,11 +34,21 @@ func (pp *PromptDao) PromptPageInfo(ctx context.Context, pageSze int, pageNum in
 }
 
 func (pp *PromptDao) PromptAdd(ctx context.Context, entity *prompt.Prompt) error {
-	return DB.WithContext(ctx).Model(&prompt.Prompt{}).Save(entity).Error
+	err := database.DB.WithContext(ctx).Model(&prompt.Prompt{}).Save(entity).Error
+	if err != nil {
+		pp.lg.Errorf("add prompt error: %v", err)
+		return fmt.Errorf("add prompt error: %v", err)
+	}
+	return nil
 }
 
 func (pp *PromptDao) PromptUpdateById(ctx context.Context, entity *prompt.Prompt) error {
-	return DB.WithContext(ctx).Model(&prompt.Prompt{}).Where("id = ?", entity.ID).Updates(entity).Error
+	err := database.DB.WithContext(ctx).Model(&prompt.Prompt{}).Where("id = ?", entity.ID).Updates(entity).Error
+	if err != nil {
+		pp.lg.Errorf("update prompt by id error: %v", err)
+		return fmt.Errorf("update prompt by id error: %v", err)
+	}
+	return nil
 }
 
 func NewPromptDao() *PromptDao {

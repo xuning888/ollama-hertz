@@ -15,6 +15,7 @@ type ChatController struct {
 }
 
 func (cc *ChatController) ChatSessionStream(c *gin.Context) {
+	defer cc.lg.Sync()
 	var request chat.ChatWithSessonReq
 	if err := c.BindJSON(&request); err != nil {
 		cc.lg.Errorf("ChatSessionStream failed invalid json error:%v", err)
@@ -31,6 +32,7 @@ func (cc *ChatController) ChatSessionStream(c *gin.Context) {
 }
 
 func (cc *ChatController) ChatClearSession(c *gin.Context) {
+	defer cc.lg.Sync()
 	var request struct {
 		UserId string
 	}
@@ -45,7 +47,8 @@ func (cc *ChatController) ChatClearSession(c *gin.Context) {
 
 	err := cc.chatService.ClearSession(c, request.UserId)
 	if err != nil {
-		c.JSON(http.StatusOK, api.FailedWithMessage("上下文清理失败"))
+		cc.lg.Errorf("clear session error: %v", err)
+		c.JSON(http.StatusOK, api.FailedWithMessage("clear session error"))
 		return
 	}
 	c.JSON(http.StatusOK, api.Success())
