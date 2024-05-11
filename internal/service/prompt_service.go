@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	modelPrompt "github.com/xuning888/yoyoyo/internal/model/prompt"
-	prompt2 "github.com/xuning888/yoyoyo/internal/repo/prompt"
+	"github.com/xuning888/yoyoyo/internal/repo"
 	"github.com/xuning888/yoyoyo/internal/schema/prompt"
 	"github.com/xuning888/yoyoyo/pkg/logger"
 )
@@ -24,7 +24,7 @@ type PromptService interface {
 }
 
 type PromptServiceImpl struct {
-	promptDao *prompt2.PromptDao
+	promptDao *repo.PromptDao
 	lg        logger.Logger
 }
 
@@ -78,7 +78,7 @@ func (p *PromptServiceImpl) PromptPage(ctx context.Context, req *prompt.PromptPa
 	return
 }
 
-func NewPromptService(promptDao *prompt2.PromptDao) *PromptServiceImpl {
+func NewPromptService(promptDao *repo.PromptDao) *PromptServiceImpl {
 	return &PromptServiceImpl{
 		promptDao: promptDao,
 		lg:        logger.Named("PromptServiceImpl"),

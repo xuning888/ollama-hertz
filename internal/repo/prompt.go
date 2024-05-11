@@ -1,4 +1,4 @@
-package prompt
+package repo
 
 import (
 	"context"

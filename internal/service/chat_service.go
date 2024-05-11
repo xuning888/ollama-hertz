@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/ollama"
+	"github.com/tmc/langchaingo/memory"
 	"github.com/xuning888/yoyoyo/config"
 	"github.com/xuning888/yoyoyo/internal/dal/redis"
-	repo "github.com/xuning888/yoyoyo/internal/repo/chat"
+	"github.com/xuning888/yoyoyo/internal/repo"
 	"github.com/xuning888/yoyoyo/internal/schema/chat"
 	"github.com/xuning888/yoyoyo/pkg/api"
 	"github.com/xuning888/yoyoyo/pkg/logger"
+	memory2 "github.com/xuning888/yoyoyo/pkg/memory"
 	"net/http"
 	"time"
 )
@@ -31,17 +34,26 @@ var (
 type ChatService interface {
 	// ChatWithSessionStream QA with stream
 	ChatWithSessionStream(ctx context.Context, req chat.ChatWithSessonReq, appCtx *gin.Context) (err error)
+	ChatWithSessionStreamV1(ctx context.Context, req chat.ChatWithSessonReq, appCtx *gin.Context) (err error)
 	// ClearSession clear chat message context
-	ClearSession(ctx context.Context, userId string) error
+	ClearSession(ctx context.Context, chatId, userId string) error
 }
 
 type ChatServiceImpl struct {
 	lg logger.Logger
 }
 
-func (c *ChatServiceImpl) ClearSession(ctx context.Context, userId string) error {
-	cache := repo.NewRedisCache(redis.Client, 0)
-	return cache.Clear(ctx, userId)
+func (c *ChatServiceImpl) ClearSession(ctx context.Context, chatId, userId string) error {
+	rhMemeory, err := memory2.NewRedisChatMessageIHistory(
+		memory2.WithRedisCmdable(redis.Client),
+		memory2.WithSessionId(fmt.Sprintf("%s:%s", chatId, userId)))
+	if err != nil {
+		return err
+	}
+	if err2 := rhMemeory.Clear(ctx); err2 != nil {
+		return err2
+	}
+	return nil
 }
 
 func (c *ChatServiceImpl) ChatWithSessionStream(
@@ -100,6 +112,48 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 		return err
 	}
 	return
+}
+
+func (c *ChatServiceImpl) ChatWithSessionStreamV1(
+	ctx context.Context, req chat.ChatWithSessonReq, appCtx *gin.Context) (err error) {
+	userId, llmModel, maxWindows := req.UserId, req.LlmModel, req.MaxWindows
+	llm, err := ollama.New(
+		ollama.WithModel(llmModel),
+		ollama.WithHTTPClient(client),
+		ollama.WithServerURL(config.DefaultConfig.OllmServerUrl),
+	)
+	if err != nil {
+		c.lg.Errorf("create llm error: %v", err)
+		return err
+	}
+	// 构建一个基于redis的历史消息存储
+	rh, err := memory2.NewRedisChatMessageIHistory(
+		memory2.WithRedisCmdable(redis.Client),
+		memory2.WithSessionId(userId),
+	)
+	if err != nil {
+		c.lg.Errorf("create redis message history error: %v", err)
+		return err
+	}
+	// 构建一个指定上下文大小的对话缓存
+	windowBuffer := memory.NewConversationWindowBuffer(
+		maxWindows,
+		memory.WithChatHistory(rh),
+	)
+	// 构建一个对话的 chain
+	conversation := chains.NewConversation(llm, windowBuffer)
+	_, err = chains.Run(ctx, conversation, req.Content,
+		// 设置一个stream 的回调函数
+		chains.WithStreamingFunc(c.makeStreamHandler(appCtx)),
+	)
+	if err != nil {
+		c.lg.Errorf("conversation error: %v", err)
+		return err
+	}
+	return
+}
+
+func (c *ChatServiceImpl) subscribeStop(ctx context.Context, userId string) {
 }
 
 func (c *ChatServiceImpl) makeStreamHandler(appCtx *gin.Context) func(ctx context.Context, chunk []byte) error {
