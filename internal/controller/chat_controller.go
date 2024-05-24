@@ -31,9 +31,9 @@ func (cc *ChatController) ChatSessionStream(c *gin.Context) {
 	return
 }
 
-func (cc *ChatController) UploadFile(c *gin.Context) {
-	// 200MB
-	const MaxUploadFileSize = 200 << 20
+func (cc *ChatController) UploadFile2Vector(c *gin.Context) {
+	// 10MB
+	const MaxUploadFileSize = 10 << 20
 	// 限制文件读取的大小
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, MaxUploadFileSize)
 
@@ -68,8 +68,8 @@ func (cc *ChatController) UploadFile(c *gin.Context) {
 func (cc *ChatController) ChatClearSession(c *gin.Context) {
 	defer cc.lg.Sync()
 	var request struct {
-		ChatId string
-		UserId string
+		SessionId string `json:"sessionId"`
+		UserId    string `json:"userId"`
 	}
 
 	if err := c.BindJSON(&request); err != nil {
@@ -80,7 +80,7 @@ func (cc *ChatController) ChatClearSession(c *gin.Context) {
 
 	cc.lg.Infof("ChatClearSession clear chat context, request: %v", request)
 
-	err := cc.chatService.ClearSession(c, request.ChatId, request.UserId)
+	err := cc.chatService.ClearSession(c, request.SessionId, request.UserId)
 	if err != nil {
 		cc.lg.Errorf("clear session error: %v", err)
 		c.JSON(http.StatusOK, api.FailedWithMessage("clear session error"))
@@ -93,7 +93,7 @@ func (cc *ChatController) Register(engine *gin.Engine) {
 	apiV1 := engine.Group("/api/v1/chat")
 	apiV1.POST("/stream", cc.ChatSessionStream)
 	apiV1.POST("/stream/clear", cc.ChatClearSession)
-	apiV1.POST("/upload", cc.UploadFile)
+	apiV1.POST("/upload", cc.UploadFile2Vector)
 }
 
 func NewChatController(chatService service.ChatService) *ChatController {

@@ -68,7 +68,7 @@ async function runScript(prompt) {
         const response = await fetch("/api/v1/chat/stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: prompt, llmTimeoutSecond: 30, userId: "1111", maxWindows: 5, llmModel: "llama3:8b" }),
+            body: JSON.stringify({ content: prompt, llmTimeoutSecond: 30, userId: "1111", sessionId: "22222", maxWindows: 5, llmModel: "llama3:8b" }),
         });
 
         if (!response.ok) {
@@ -124,7 +124,7 @@ async function clearContent( action) {
     response = await fetch("/api/v1/chat/stream/clear", {
         method: "POST",
         headers: { "Content-Type": "application/json"},
-        body: JSON.stringify({content: prompt, llmTimeoutSecond: 30, userId:"1111", maxWindows: 30}),
+        body: JSON.stringify({content: prompt, llmTimeoutSecond: 30, userId:"1111", maxWindows: 30, sessionId:"22222"}),
     });
 
     console.log(response)

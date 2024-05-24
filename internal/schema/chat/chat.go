@@ -11,6 +11,7 @@ type ChatWithSessonReq struct {
 	Content          string `json:"content"`
 	LlmTimeoutSecond int    `json:"llmTimeoutSecond"`
 	UserId           string `json:"userId"`
+	SessionId        string `json:"sessionId"`
 	MaxWindows       int    `json:"maxWindows"`
 	LlmModel         string `json:"llmModel"`
 }

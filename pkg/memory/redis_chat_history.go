@@ -7,6 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/schema"
+	"github.com/xuning888/yoyoyo/pkg/logger"
 	"log"
 	"time"
 )
@@ -40,17 +41,21 @@ type RedisChatMessageIHistory struct {
 	client    redis.Cmdable
 	sessionId string
 	namespace string
+	lg        logger.Logger
 }
 
 func (r *RedisChatMessageIHistory) AddMessage(ctx context.Context, message llms.ChatMessage) error {
+	defer r.lg.Sync()
 	key := r.key()
 	_message := RedisMessageContent{
 		Role:      string(message.GetType()),
 		Content:   message.GetContent(),
 		Timestamp: time.Now().UnixMilli(),
 	}
+	r.lg.Infof("AddMessage key: %s, role: %v", key, _message.Role)
 	marshalMessage, err := json.Marshal(_message)
 	if err != nil {
+		r.lg.Errorf("AddMessage marshal falied, key: %v error: %v", key, err)
 		return err
 	}
 	resCmd := r.client.ZAdd(ctx, key, redis.Z{
@@ -58,6 +63,7 @@ func (r *RedisChatMessageIHistory) AddMessage(ctx context.Context, message llms.
 		Member: marshalMessage,
 	})
 	if resCmd.Err() != nil {
+		r.lg.Errorf("AddMessage failed key: %v, error: %v", key, err)
 		return resCmd.Err()
 	}
 	return nil
@@ -74,33 +80,46 @@ func (r *RedisChatMessageIHistory) AddAIMessage(ctx context.Context, message str
 }
 
 func (r *RedisChatMessageIHistory) Clear(ctx context.Context) error {
+	defer r.lg.Sync()
 	key := r.key()
+	r.lg.Infof("Clear message key: %v", key)
 	if err := r.client.Del(ctx, key).Err(); err != nil {
+		r.lg.Errorf("Clear message failed key: %v, error: %v", key, err)
 		return err
 	}
 	return nil
 }
 
 func (r *RedisChatMessageIHistory) Messages(ctx context.Context) ([]llms.ChatMessage, error) {
+	defer r.lg.Sync()
 	key := r.key()
 	zRange := r.client.ZRange(ctx, key, 0, -1)
 	if err := zRange.Err(); err != nil {
+		r.lg.Errorf("Messages failed key: %v, error: %v", key, err)
 		return nil, err
 	}
 	values := zRange.Val()
+	r.lg.Infof("Messages load from redis success, key: %v, messages size: %d", key, len(values))
 	messages := make([]llms.ChatMessage, 0, len(values))
 	for _, value := range values {
 		var message RedisMessageContent
 		if err := json.Unmarshal([]byte(value), &message); err != nil {
+			r.lg.Errorf("Messages Unmarshal message failed key: %v, value: %s, error: %v", key, value, err)
 			return messages, err
 		}
-		messages = append(messages, message.ConvertToChatMessage())
+		chatMessage := message.ConvertToChatMessage()
+		if chatMessage == nil {
+			continue
+		}
+		messages = append(messages, chatMessage)
 	}
 	return messages, nil
 }
 
 func (r *RedisChatMessageIHistory) SetMessages(ctx context.Context, messages []llms.ChatMessage) error {
+	defer r.lg.Sync()
 	key := r.key()
+	r.lg.Infof("SetMessages key: %v, messages size: %d", key, len(messages))
 	zs := make([]redis.Z, 0, len(messages))
 	now := time.Now().UnixMilli()
 	for idx, message := range messages {
@@ -112,6 +131,7 @@ func (r *RedisChatMessageIHistory) SetMessages(ctx context.Context, messages []l
 		}
 		member, err := json.Marshal(content)
 		if err != nil {
+			r.lg.Errorf("SetMessages Marshal failed key: %v, concent: %v, error: %v", key, content, err)
 			return err
 		}
 		zs = append(zs, redis.Z{
@@ -121,12 +141,15 @@ func (r *RedisChatMessageIHistory) SetMessages(ctx context.Context, messages []l
 	}
 	pipe := r.client.TxPipeline()
 	if err := pipe.Del(ctx, key).Err(); err != nil {
+		r.lg.Errorf("SetMessages del old messages failed key: %v, error: %v", key, err)
 		return err
 	}
 	if err := pipe.ZAdd(ctx, key, zs...).Err(); err != nil {
+		r.lg.Errorf("SetMessage zadd messages fialed key: %v, error: %v", key, err)
 		return err
 	}
 	if _, err := pipe.Exec(ctx); err != nil {
+		r.lg.Errorf("SetMessage exec failed key: %v, error: %v", key, err)
 		return err
 	}
 	return nil
@@ -137,9 +160,13 @@ func (r *RedisChatMessageIHistory) key() string {
 }
 
 func NewRedisChatMessageIHistory(opts ...RedisChatHistoryOption) (*RedisChatMessageIHistory, error) {
-	rh, err := applyRedisChatHistoryOption(opts...)
-	if err != nil {
+	lg := logger.Named("redisChatMessageHistory")
+	defer lg.Sync()
+	if rh, err := applyRedisChatHistoryOption(opts...); err != nil {
+		lg.Errorf("NewRedisChatMessageIHistory failed error: %v", err)
 		return nil, err
+	} else {
+		rh.lg = lg
+		return rh, nil
 	}
-	return rh, nil
 }

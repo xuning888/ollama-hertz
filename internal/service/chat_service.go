@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redsync/redsync/v4"
 	"github.com/pkg/errors"
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms"
@@ -15,6 +16,7 @@ import (
 	"github.com/xuning888/yoyoyo/internal/repo"
 	"github.com/xuning888/yoyoyo/internal/schema/chat"
 	"github.com/xuning888/yoyoyo/pkg/api"
+	"github.com/xuning888/yoyoyo/pkg/lock"
 	"github.com/xuning888/yoyoyo/pkg/logger"
 	memory2 "github.com/xuning888/yoyoyo/pkg/memory"
 	"net/http"
@@ -46,7 +48,7 @@ type ChatServiceImpl struct {
 func (c *ChatServiceImpl) ClearSession(ctx context.Context, chatId, userId string) error {
 	rhMemeory, err := memory2.NewRedisChatMessageIHistory(
 		memory2.WithRedisCmdable(redis.Client),
-		memory2.WithSessionId(fmt.Sprintf("%s:%s", chatId, userId)))
+		memory2.WithSessionId(fmt.Sprintf("%s:%s", userId, chatId)))
 	if err != nil {
 		return err
 	}
@@ -116,7 +118,20 @@ func (c *ChatServiceImpl) ChatWithSessionStream(
 
 func (c *ChatServiceImpl) ChatWithSessionStreamV1(
 	ctx context.Context, req chat.ChatWithSessonReq, appCtx *gin.Context) (err error) {
-	userId, llmModel, maxWindows := req.UserId, req.LlmModel, req.MaxWindows
+	userId, sessionId, llmModel, maxWindows := req.UserId, req.SessionId, req.LlmModel, req.MaxWindows
+	mux := lock.Rs.NewMutex(fmt.Sprintf("chatStreamLock:%s:%s", userId, sessionId), redsync.WithExpiry(time.Minute*5))
+	if lockErr := mux.TryLockContext(ctx); lockErr != nil {
+		c.lg.Errorf("ChatWithSessionStreamV1 lock error: %v", lockErr)
+		return lockErr
+	}
+	defer func() {
+		if _, err2 := mux.UnlockContext(ctx); err2 != nil {
+			c.lg.Errorf("ChatWithSessionStreamV1 unlock errror: %v", err2)
+			return
+		}
+		c.lg.Sync()
+	}()
+	c.lg.Infof("ChatWithSessionStreamV1 userId: %v, llmModel: %s, maxWindows: %d", userId, llmModel, maxWindows)
 	llm, err := ollama.New(
 		ollama.WithModel(llmModel),
 		ollama.WithHTTPClient(client),
@@ -129,7 +144,7 @@ func (c *ChatServiceImpl) ChatWithSessionStreamV1(
 	// 构建一个基于redis的历史消息存储
 	rh, err := memory2.NewRedisChatMessageIHistory(
 		memory2.WithRedisCmdable(redis.Client),
-		memory2.WithSessionId(userId),
+		memory2.WithSessionId(fmt.Sprintf("%s:%s", userId, sessionId)),
 	)
 	if err != nil {
 		c.lg.Errorf("create redis message history error: %v", err)
@@ -151,9 +166,6 @@ func (c *ChatServiceImpl) ChatWithSessionStreamV1(
 		return err
 	}
 	return
-}
-
-func (c *ChatServiceImpl) subscribeStop(ctx context.Context, userId string) {
 }
 
 func (c *ChatServiceImpl) makeStreamHandler(appCtx *gin.Context) func(ctx context.Context, chunk []byte) error {
